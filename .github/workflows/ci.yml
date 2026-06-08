@@ -16,27 +16,64 @@ jobs:
         run: |
           set -e
           test -f README.md
-          test -f _compact/YYYY-MMM-DD.har.compact.md
+          test -f _templates/YY-MM-DD-HAR.md
+          test -f _templates/YY-MM-DD-HAR-compact.md
           echo "core files present"
 
-      - name: Daily entry filenames are YYYY-MMM-DD.har.compact.md
+      - name: Detailed log filenames are YY-MM-DD-HAR.md
         run: |
           set -e
           bad=0
           while IFS= read -r f; do
             base=$(basename "$f")
-            if ! echo "$base" | grep -Eq '^[0-9]{4}-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]{2}\.har\.compact\.md$'; then
-              echo "::error file=$f::daily entry must be named YYYY-MMM-DD.har.compact.md"
+            if ! echo "$base" | grep -Eq '^[0-9]{2}-[0-9]{2}-[0-9]{2}-HAR\.md$'; then
+              echo "::error file=$f::detailed log must be named YY-MM-DD-HAR.md"
               bad=1
             fi
-          done < <(find projects -type f -name '*.har.compact.md' 2>/dev/null)
+          done < <(find projects -type f -name '*-HAR.md')
           exit $bad
 
-      - name: Every project folder has a README index
+      - name: Compact rollup filenames are YY-MM-DD-HAR-compact.md
         run: |
           set -e
           bad=0
-          for d in projects/*/; do
+          while IFS= read -r f; do
+            base=$(basename "$f")
+            if ! echo "$base" | grep -Eq '^[0-9]{2}-[0-9]{2}-[0-9]{2}-HAR-compact\.md$'; then
+              echo "::error file=$f::compact rollup must be named YY-MM-DD-HAR-compact.md"
+              bad=1
+            fi
+          done < <(find projects -type f -name '*-HAR-compact.md')
+          exit $bad
+
+      - name: Every brain is numbered, has a README and exactly one compact rollup
+        run: |
+          set -e
+          bad=0
+          for b in projects/*/; do
+            [ -d "$b" ] || continue
+            name=$(basename "$b")
+            if ! echo "$name" | grep -Eq '^brain-[0-9]+$'; then
+              echo "::error::brain folder must be named brain-<n>: $b"
+              bad=1
+            fi
+            if [ ! -f "${b}README.md" ]; then
+              echo "::error::missing ${b}README.md"
+              bad=1
+            fi
+            n=$(find "$b" -maxdepth 1 -type f -name '*-HAR-compact.md' | wc -l)
+            if [ "$n" -ne 1 ]; then
+              echo "::error::brain $name must have exactly one compact rollup (found $n)"
+              bad=1
+            fi
+          done
+          exit $bad
+
+      - name: Every repo folder inside a brain has a README index
+        run: |
+          set -e
+          bad=0
+          for d in projects/*/*/; do
             [ -d "$d" ] || continue
             if [ ! -f "${d}README.md" ]; then
               echo "::error::missing ${d}README.md"

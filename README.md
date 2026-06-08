@@ -4,28 +4,59 @@
 
 Harness Brain is a plain-Markdown, git-backed memory of *what changed and why*
 across every project in your ecosystem. The `commit-brain-agent` writes a
-compact dated summary here on each commit; the `cross-repo-discovery-agent`
-reads it at session start to surface a recent-change digest across a project and
-its dependencies.
+detailed per-repo log here on each commit and rolls it up into a compact
+per-brain digest; the `cross-repo-discovery-agent` reads those at session start
+to surface a recent-change digest across a project and its related repos.
 
-It is intentionally simple: human-readable Markdown, one folder per project, one
-file per day. No database, no service — just a repo you can grep, diff, and read.
+It is intentionally simple: human-readable Markdown, no database, no service —
+just a repo you can grep, diff, and read.
+
+## Brains: how repos are grouped
+
+A **brain** is a numbered folder under `projects/` that groups repositories.
+
+- **Related repos share one brain.** A product split across several
+  repositories (e.g. an API + its web client) puts all of those repos inside the
+  **same** brain. The grouping is what marks them related, so the
+  `cross-repo-discovery-agent` reads them **together**.
+- **Unrelated repos each get their own brain.** Independent projects live in
+  **separate** numbered brains (`brain-2`, `brain-3`, …) and are digested in
+  isolation.
+
+| Scenario | Example | What it shows |
+| --- | --- | --- |
+| **Related** — one product, many repos | [`brain-1/`](projects/brain-1) → `ledger-api` + `ledger-web` | Two repos of one product (Ledger) in **one** brain; `web` depends on `api`, read together. |
+| **Unrelated** — independent repos | [`brain-2/`](projects/brain-2) `weather-cli`, [`brain-3/`](projects/brain-3) `markdown-linter` | Each unrelated repo in its **own** numbered brain. |
+
+## Files: detailed logs vs the compact rollup
+
+Each brain holds two kinds of file:
+
+- **Detailed per-repo log** — one folder per repo, with dated detailed entries
+  `YY-MM-DD-HAR.md`. Full content: what/why/files/cross-repo impact/flags. This
+  is the source of record, appended per commit.
+- **Compact brain rollup** — a **single** file at the brain root,
+  `YY-MM-DD-HAR-compact.md`, regenerated daily. It is structured by project and
+  carries the compacted, one-line-per-change view across the whole brain.
+
+All dates are **fully numeric**: `YY-MM-DD` (e.g. `26-06-07` = 2026-06-07).
 
 ```
    project repo (on_commit)                          new session start
           |                                                  |
           v                                                  v
   +-------------------+                            +---------------------------+
-  | commit-brain-     |   append summary           | cross-repo-discovery-     |
-  |   agent           |--------------+             |   agent                   |
-  +-------------------+              |             +-------------+-------------+
+  | commit-brain-     |   detailed log +           | cross-repo-discovery-     |
+  |   agent           |   compact rollup           |   agent                   |
+  +-------------------+--------------+             +-------------+-------------+
                                      v                           ^
-                        +---------------------------------+      | read 7/30-day
-                        |          harness-brain          |      | digest across
-                        |  projects/<project>/            |------+ project + deps
-                        |    <YYYY-MMM-DD>.har.compact.md  |
-                        +---------------------------------+
-                          (located via HARNESS_BRAIN_PATH)
+                +-----------------------------------+    | read recent digest
+                |            harness-brain           |    | across the brain
+                |  projects/<brain>/                 |----+ (related repos
+                |    <YY-MM-DD>-HAR-compact.md  (1×)  |      read together)
+                |    <repo>/<YY-MM-DD>-HAR.md         |
+                +-----------------------------------+
+                  (located via HARNESS_BRAIN_PATH)
 ```
 
 ## Layout
@@ -33,52 +64,54 @@ file per day. No database, no service — just a repo you can grep, diff, and re
 ```
 harness-brain/
 ├── README.md
-├── projects/
-│   └── <project-name>/
-│       ├── README.md                    ← per-project index (auto-bootstrapped)
-│       └── <YYYY-MMM-DD>.har.compact.md  ← dated change log (appended per commit)
-└── _compact/
-    └── YYYY-MMM-DD.har.compact.md       ← the format each daily entry follows
+├── _templates/
+│   ├── YY-MM-DD-HAR.md            ← detailed per-repo entry format
+│   └── YY-MM-DD-HAR-compact.md    ← brain-level compact rollup format
+└── projects/
+    ├── brain-1/                       ← RELATED repos (one product) share a brain
+    │   ├── README.md                  ← brain index: product + member repos
+    │   ├── 26-06-07-HAR-compact.md    ← single daily compact rollup (all repos)
+    │   ├── ledger-api/
+    │   │   ├── README.md
+    │   │   └── 26-06-07-HAR.md        ← detailed log
+    │   └── ledger-web/
+    │       ├── README.md
+    │       └── 26-06-07-HAR.md
+    ├── brain-2/                       ← UNRELATED repo → its own brain
+    │   ├── README.md
+    │   ├── 26-06-05-HAR-compact.md
+    │   └── weather-cli/
+    │       ├── README.md
+    │       └── 26-06-05-HAR.md
+    └── brain-3/                       ← another UNRELATED repo → another brain
+        ├── README.md
+        ├── 26-06-03-HAR-compact.md
+        └── markdown-linter/
+            ├── README.md
+            └── 26-06-03-HAR.md
 ```
 
-- **One folder per project**, named after the repo.
-- **One file per day**, `YYYY-MMM-DD.har.compact.md` (e.g. `2026-Jun-06.har.compact.md`).
-  Multiple commits on the same day append to the same file.
-- Folders + per-project README are bootstrapped on the project's first commit.
-
-### One repo per folder — even for multi-repo products
-
-A folder maps to a **repository**, not a product. A product built from several
-repositories therefore gets **one folder per repo**, and the relationship
-between them is declared in each folder's `README.md` (a `Part of:` product line
-plus `Related repos:` / `Depends on:` links). The `cross-repo-discovery-agent`
-uses those declarations to decide which folders to read **together** at session
-start. Two scenarios, both worked through in [`projects/`](projects/):
-
-| Scenario | Example folders | Relationship |
-| --- | --- | --- |
-| **Related** — one product, many repos | `example-related--ledger-api`, `example-related--ledger-web` | Same product (Ledger); `web` depends on `api`. Read together as one cross-repo digest. |
-| **Unrelated** — independent repos | `example-unrelated--weather-cli`, `example-unrelated--markdown-linter` | No relationship; each digested in isolation. |
-
-The `example-related--` / `example-unrelated--` prefixes are illustrative labels
-so the scenario is obvious from the folder name. In a real brain the folder is
-simply the repo name — relatedness lives in the README declarations, not the
-folder name.
+- **One brain per group of related repos**, numbered `brain-1`, `brain-2`, …
+- **One folder per repo** inside its brain, named after the repo.
+- **Detailed logs** are `YY-MM-DD-HAR.md` per repo; multiple commits on the same
+  day append to that day's file.
+- **One compact rollup** per brain, `YY-MM-DD-HAR-compact.md`, regenerated daily.
+- Brains, repo folders, and READMEs are bootstrapped on a repo's first commit.
 
 ## Entry format
 
-Each commit appends a section (≤200 words) capturing: what changed, why, the
-files touched, and any to-dos or flags. See
-[`_compact/YYYY-MMM-DD.har.compact.md`](_compact/YYYY-MMM-DD.har.compact.md) for
-the canonical shape and the worked examples under
-[`projects/`](projects/) (related vs unrelated repos — see Layout above).
+See [`_templates/YY-MM-DD-HAR.md`](_templates/YY-MM-DD-HAR.md) for the detailed
+per-repo entry and [`_templates/YY-MM-DD-HAR-compact.md`](_templates/YY-MM-DD-HAR-compact.md)
+for the brain rollup. The worked examples under [`projects/`](projects/) show
+both the related-repos and unrelated-repos cases end to end.
 
 ## How it is written
 
 The `commit-brain-agent` (defined in `harness-stack/.subagents/`) runs on
-`on_commit`, reads the diff + commit message, and appends a summary here. It is
-designed to **never block a commit** — on any error it logs to stderr and exits
-0.
+`on_commit`, reads the diff + commit message, appends a detailed entry to the
+repo's `YY-MM-DD-HAR.md`, and refreshes its brain's `YY-MM-DD-HAR-compact.md`
+rollup. It is designed to **never block a commit** — on any error it logs to
+stderr and exits 0.
 
 Point the agent at this repo with the `HARNESS_BRAIN_PATH` environment variable:
 
@@ -88,7 +121,7 @@ export HARNESS_BRAIN_PATH=/path/to/harness-brain
 
 ## How it is read
 
-The `cross-repo-discovery-agent` runs at session start, collects the last
-7/30 days of `.har.compact.md` files for the current project and its declared
-dependencies, and produces a per-project digest. If a dependency has no folder
-here, it flags it and asks whether to add it to the brain.
+The `cross-repo-discovery-agent` runs at session start. For the current repo it
+locates the repo's brain, reads the recent compact rollup plus the detailed logs
+of every repo in that brain (related repos, read together), and produces a
+digest. A repo in its own brain is digested in isolation.
