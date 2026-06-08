@@ -1,4 +1,4 @@
-# <project-name> — <YYYY-MM-DD>
+# <project-name> — <YYYY-MMM-DD>
 
 <!-- One section per commit. Newest entries appended at the bottom. -->
 

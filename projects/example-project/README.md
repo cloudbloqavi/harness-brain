@@ -6,4 +6,4 @@ commit.
 
 | Date | Entries | File |
 | --- | --- | --- |
-| 2026-06-06 | 1 | [2026-06-06.harness.md](2026-06-06.harness.md) |
+| 2026-Jun-06 | 1 | [2026-Jun-06.har.compact.md](2026-Jun-06.har.compact.md) |

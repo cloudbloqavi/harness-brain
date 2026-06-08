@@ -16,20 +16,20 @@ jobs:
         run: |
           set -e
           test -f README.md
-          test -f _template/DAILY.harness.md
+          test -f _compact/YYYY-MMM-DD.har.compact.md
           echo "core files present"
 
-      - name: Daily entry filenames are YYYY-MM-DD.harness.md
+      - name: Daily entry filenames are YYYY-MMM-DD.har.compact.md
         run: |
           set -e
           bad=0
           while IFS= read -r f; do
             base=$(basename "$f")
-            if ! echo "$base" | grep -Eq '^[0-9]{4}-[0-9]{2}-[0-9]{2}\.harness\.md$'; then
-              echo "::error file=$f::daily entry must be named YYYY-MM-DD.harness.md"
+            if ! echo "$base" | grep -Eq '^[0-9]{4}-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-[0-9]{2}\.har\.compact\.md$'; then
+              echo "::error file=$f::daily entry must be named YYYY-MMM-DD.har.compact.md"
               bad=1
             fi
-          done < <(find projects -type f -name '*.harness.md' 2>/dev/null)
+          done < <(find projects -type f -name '*.har.compact.md' 2>/dev/null)
           exit $bad
 
       - name: Every project folder has a README index
