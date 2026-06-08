@@ -11,6 +11,23 @@ its dependencies.
 It is intentionally simple: human-readable Markdown, one folder per project, one
 file per day. No database, no service — just a repo you can grep, diff, and read.
 
+```
+   project repo (on_commit)                          new session start
+          |                                                  |
+          v                                                  v
+  +-------------------+                            +---------------------------+
+  | commit-brain-     |   append summary           | cross-repo-discovery-     |
+  |   agent           |--------------+             |   agent                   |
+  +-------------------+              |             +-------------+-------------+
+                                     v                           ^
+                        +---------------------------------+      | read 7/30-day
+                        |          harness-brain          |      | digest across
+                        |  projects/<project>/            |------+ project + deps
+                        |    <YYYY-MM-DD>.harness.md       |
+                        +---------------------------------+
+                          (located via HARNESS_BRAIN_PATH)
+```
+
 ## Layout
 
 ```
