@@ -46,13 +46,32 @@ harness-brain/
   Multiple commits on the same day append to the same file.
 - Folders + per-project README are bootstrapped on the project's first commit.
 
+### One repo per folder — even for multi-repo products
+
+A folder maps to a **repository**, not a product. A product built from several
+repositories therefore gets **one folder per repo**, and the relationship
+between them is declared in each folder's `README.md` (a `Part of:` product line
+plus `Related repos:` / `Depends on:` links). The `cross-repo-discovery-agent`
+uses those declarations to decide which folders to read **together** at session
+start. Two scenarios, both worked through in [`projects/`](projects/):
+
+| Scenario | Example folders | Relationship |
+| --- | --- | --- |
+| **Related** — one product, many repos | `example-related--ledger-api`, `example-related--ledger-web` | Same product (Ledger); `web` depends on `api`. Read together as one cross-repo digest. |
+| **Unrelated** — independent repos | `example-unrelated--weather-cli`, `example-unrelated--markdown-linter` | No relationship; each digested in isolation. |
+
+The `example-related--` / `example-unrelated--` prefixes are illustrative labels
+so the scenario is obvious from the folder name. In a real brain the folder is
+simply the repo name — relatedness lives in the README declarations, not the
+folder name.
+
 ## Entry format
 
 Each commit appends a section (≤200 words) capturing: what changed, why, the
 files touched, and any to-dos or flags. See
 [`_compact/YYYY-MMM-DD.har.compact.md`](_compact/YYYY-MMM-DD.har.compact.md) for
-the canonical shape and [`projects/example-project`](projects/example-project) for a worked
-example.
+the canonical shape and the worked examples under
+[`projects/`](projects/) (related vs unrelated repos — see Layout above).
 
 ## How it is written
 
